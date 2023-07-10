@@ -620,14 +620,27 @@ gas() {
 
 
 if [ "$BASH_SOURCE" = "$0" ]; then
-    help=\
+    command="${1:0:3}"
+    shift
+    case "${command,,}" in
+        bal) bal "$@" ;;
+        ens) ens "$@" ;;
+        gas) gas "$@" ;;
+        uni) uni "$@" ;;
+        erc) erc20 "$@" ;;
+        kec) keccak "$@" ;;
+        tow) toWei "$@" ;;
+        fro) fromWei "$@" ;;
+        cha) chainlink "$@" ;;
+        *)
+            echo -e \
 'Useful tools for Web3 / Ethereum\n'\
 'Usage:\n  ./web3-tools.sh [command] [args...] [-r RPC URL]\n\n'\
 'Commands:\n'\
 'bal\n  Get ETH or ERC-20 token balance of address\n'\
 '  usage: bal [address or ENS name] [token address or symbol] [-l token_list] [-i token_index] [-n network] [-a] [-r RPC URL]\n\n'\
 'ens\n  resolve ENS address or reverse resolve ETH address\n'\
-'  usage: ens [ENS name or address] [-r RPC URL]\n\n'\
+'  usage: ens [ENS name or address] [-C] [-r RPC URL]\n\n'\
 'gas\n  Get next block gas price\n'\
 '  usage: gas [-d] [-w] [-p min priority fee] [-r RPC URL]\n\n'\
 'erc20\n  Get ERC-20 token info\n'\
@@ -647,6 +660,7 @@ if [ "$BASH_SOURCE" = "$0" ]; then
 'fromWei\n  Convert from wei to ether\n'\
 '  usage: fromWei [number] [number of decimals]\n\n'\
 'Requirements:\n'\
+'  - bash 4.0+\n'\
 '  - jq for token list parsing and gas price\n'\
 '  - curl for rpc calls\n'\
 '  - gawk (GNU awk with -M option) for hex numbers greater than 64 bit\n'\
@@ -673,19 +687,14 @@ if [ "$BASH_SOURCE" = "$0" ]; then
 '  -x                 Convert input from hexadecimal\n'\
 'toWei command:\n'\
 '  -x                 Convert output to hexadecimal'
-    command="${1,,}"
-    shift
-    case "${command:0:3}" in
-        bal) bal "$@" ;;
-        ens) ens "$@" ;;
-        gas) gas "$@" ;;
-        uni) uni "$@" ;;
-        erc) erc20 "$@" ;;
-        kec) keccak "$@" ;;
-        tow) toWei "$@" ;;
-        fro) fromWei "$@" ;;
-        cha) chainlink "$@" ;;
-        *) echo -e "$help" ;;
+            # check dependencies
+            [ "${BASH_VERSION%%.*}" -lt 4 ] && echo "error: bash version $BASH_VERSION lower than 4.0"
+            command -v jq >/dev/null 2>&1 || echo "error: jq is not installed"
+            command -v curl >/dev/null 2>&1 || echo "error: curl is not installed"
+            command -v gawk >/dev/null 2>&1 || echo "error: gawk is not installed"
+            command -v keccak-256sum >/dev/null 2>&1 || echo "warning: keccak-256sum is not installed," \
+                                                             "will use web3_sha3 rpc call instead (slower)"
+            ;;
     esac
 fi
 
