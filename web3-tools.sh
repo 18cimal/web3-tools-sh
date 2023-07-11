@@ -474,6 +474,7 @@ uni() {
     local token_list=''
     local net=''
     local fee='0.3'
+    local fee_set=''
     local opt OPTIND OPTARG
     for opt in "$1" "$2" "$3"; do
         if [[ "${opt/./}" =~ ^[0-9]+$ ]]; then
@@ -489,7 +490,7 @@ uni() {
             i) token_index[0]="$OPTARG" ;;
             I) token_index[1]="$OPTARG" ;;
             n) net="$OPTARG" ;;
-            f) [ "$OPTARG" ] && fee="$OPTARG" ;;
+            f) [ "$OPTARG" ] && { fee="$OPTARG"; fee_set=1; } ;;
             r) [ "$OPTARG" ] && rpc="$OPTARG" ;;
             :)  { echo "Option -$OPTARG requires an argument." >&2; return 1; } ;;
             \?) { echo "Invalid option!: -$OPTARG" >&2 ; return 1; } ;;
@@ -546,7 +547,17 @@ uni() {
     params="${params}${t_addr[0]}${t_addr[1]}${amount_hex}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
     data=$(curl -Ls "$rpc" --json "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-    [[ "$data" == *reverted* ]] && { >&2 echo "error: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%"; return 1; }
+    if [[ "$data" == *reverted* ]]; then
+        if [ -z "$fee_set" ]; then # retry with 1% fee
+            echo "warning: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%, trying 1%" >&2
+            fee=1
+            fee_hex='2710'
+            params="${params:0:292}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
+            data=$(curl -Ls "$rpc" --json "$params")
+            [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
+        fi
+        [[ "$data" == *reverted* ]] && { >&2 echo "error: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%"; return 1; }
+    fi
     data=${data#*\"result\":\"}
     amount[$((1-$i))]=$(fromWei "${data:0:66}" "${d[$((1-$i))]}")
 
