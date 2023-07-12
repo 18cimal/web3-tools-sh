@@ -112,7 +112,7 @@ erc20() {
         # skip if symbol or name is not requested
         [ "$method" = 0x95d89b41 -a "$symbol" -a "$compact" ] || [ "$method" = 0x06fdde03 -a "$compact" ] && continue
         local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"'$method'"},"latest"]}'
-        local data=$(curl -Ls "$rpc" --json "$params")
+        local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"            # remove spaces
         data=${data#*\"result\":\"0x} # get result
@@ -135,7 +135,7 @@ erc20() {
     # get decimals
     if [ "$decimals" = null -o -z "$compact" ]; then
         local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"]}'
-        local data=$(curl -Ls "$rpc" --json "$params")
+        local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"          # remove spaces
         data=${data#*\"result\":\"} # get result
@@ -181,7 +181,7 @@ keccak() {
             data=$hex
         fi
         local params='{"id":1,"method":"web3_sha3","params":["0x'$data'"]}'
-        hash=$(curl -Ls "$rpc" --json "$params")
+        hash=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         [ -z "$hash" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         hash="${hash// /}"            # remove spaces
         hash=${hash#*\"result\":\"0x} # get result
@@ -226,7 +226,7 @@ ens() {
     # get resolver
     local registry='0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e'
     local params='{"id":1,"method":"eth_call","params":[{"to":"'$registry'","data":"0x0178b8bf'$namehash'"},"latest"]}'
-    local data=$(curl -Ls "$rpc" --json "$params")
+    local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     data="${data// /}"            # remove spaces
     data=${data#*\"result\":\"0x} # get result
@@ -237,7 +237,7 @@ ens() {
     if [ -z "$reverse" ]; then
         # eth_call to resolver with 'addr' method selector
         params='{"id":1,"method":"eth_call","params":[{"to":"'$resolver'","data":"0x3b3b57de'$namehash'"},"latest"]}'
-        data=$(curl -Ls "$rpc" --json "$params")
+        data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         [[ "$data" != *result* ]] && { >&2 echo -e "error: resolver contract\n$data"; return 1; } 
         data="${data// /}"            # remove spaces
@@ -264,7 +264,7 @@ ens() {
         fi
     else # reverse resolve using 'name' method
         params='{"id":1,"method":"eth_call","params":[{"to":"'$resolver'","data":"0x691f3431'$namehash'"},"latest"]}'
-        data=$(curl -Ls "$rpc" --json "$params")
+        data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"            # remove spaces
         data=${data#*\"result\":\"0x} # get result
@@ -426,7 +426,7 @@ bal() {
         params='{"id":1,"method":"eth_call","params":[{"to":"'${data[1]}'","data":"0x70a08231'${address}'"},"latest"]}'
     fi
 
-    data=$(curl -Ls "$rpc" --json "$params")
+    data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     data="${data// /}"          # remove spaces
     data=${data#*\"result\":\"} # get result
@@ -464,7 +464,7 @@ chainlink() {
     # get decimals
     if [ -z "$d" ]; then
         local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"]}'
-        local data=$(curl -Ls "$rpc" --json "$params")
+        local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"          # remove spaces
         data=${data#*\"result\":\"} # get result
@@ -473,7 +473,7 @@ chainlink() {
 
     # call 'latestAnswer' method
     local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x50d25bcd"},"latest"]}'
-    local data=$(curl -Ls "$rpc" --json "$params")
+    local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     [[ "$data" != *result* ]] && { >&2 echo -e "error: oracle contract\n$data"; return 1; } 
     data="${data// /}"          # remove spaces
@@ -564,14 +564,14 @@ uni() {
     local amount_hex=$(toWei "${amount[$i]}" "${d[$i]}" -x)
     amount_hex=${z:0:$((66-${#amount_hex}))}${amount_hex:2} # pad with zeroes
     params="${params}${t_addr[0]}${t_addr[1]}${amount_hex}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
-    data=$(curl -Ls "$rpc" --json "$params")
+    data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
     if [[ "$data" == *reverted* ]]; then
         if [ -z "$fee_set" ]; then # retry with 1% fee
             echo "warning: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%, trying 1%" >&2
             fee=1
             fee_hex='2710'
             params="${params:0:292}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
-            data=$(curl -Ls "$rpc" --json "$params")
+            data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
         fi
         [[ "$data" == *reverted* ]] && { >&2 echo "error: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%"; return 1; }
     fi
@@ -605,7 +605,7 @@ gas() {
 
     # get lastest block data: base fee, gas target and gas used
     local params='{"id":1,"method":"eth_getBlockByNumber","params":["latest",true]}'
-    local block=$(curl -Ls "$rpc" --json "$params")
+    local block=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
     [ -z "$block" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     local block_data=($(echo "$block" | jq -j '.result | "\(.baseFeePerGas) \(.gasLimit) \(.gasUsed)"'))
     local base_fee="${block_data[0]}"
