@@ -112,6 +112,7 @@ Uses [Token list](#token-list) for ERC-20 token symbols.
 
 Supports both "sell exact" and "buy exact" by using the order of the arguments. No multi-hop routing is done so it only works with token pairs where a direct pool exists.
 By default, it will use the 0.3% fee pool. To get a quote from other fee tier pools use the `-f` option with `0.01`, `0.05` or `1` value.
+If the default 0.3% pool doesn't exist then the 1% fee pool is tried.
 
 Additional supported networks are `arbitrum`, `optimism`, `polygon` and `bsc` (addresses of quoter contract are set for those networks).
 ```

@@ -114,8 +114,10 @@ erc20() {
         local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"'$method'"},"latest"]}'
         local data=$(curl -Ls "$rpc" --json "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        data=${data##*\"0x}
-        data=${data:128:-2}
+        data="${data// /}"            # remove spaces
+        data=${data#*\"result\":\"0x} # get result
+        data=${data%\"*}
+        data=${data:128}
         local hexstr=''
         local j=0
         local c=${data:$((2*$j)):2}
@@ -135,7 +137,9 @@ erc20() {
         local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"]}'
         local data=$(curl -Ls "$rpc" --json "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        decimals=$(fromWei "${data: -68:66}" 0)
+        data="${data// /}"          # remove spaces
+        data=${data#*\"result\":\"} # get result
+        decimals=$(fromWei "${data%\"*}" 0)
     fi
     
     if [ "$compact" ]; then
@@ -179,7 +183,9 @@ keccak() {
         local params='{"id":1,"method":"web3_sha3","params":["0x'$data'"]}'
         hash=$(curl -Ls "$rpc" --json "$params")
         [ -z "$hash" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        echo ${hash: -66:64}
+        hash="${hash// /}"            # remove spaces
+        hash=${hash#*\"result\":\"0x} # get result
+        echo "${hash%\"*}"
     fi
 }
 
@@ -222,7 +228,10 @@ ens() {
     local params='{"id":1,"method":"eth_call","params":[{"to":"'$registry'","data":"0x0178b8bf'$namehash'"},"latest"]}'
     local data=$(curl -Ls "$rpc" --json "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-    local resolver=0x${data: -42:40}
+    data="${data// /}"            # remove spaces
+    data=${data#*\"result\":\"0x} # get result
+    data=${data%\"*}
+    local resolver=0x${data: -40}
     [ "$resolver" = 0x0000000000000000000000000000000000000000 ] && return 0
 
     if [ -z "$reverse" ]; then
@@ -230,8 +239,11 @@ ens() {
         params='{"id":1,"method":"eth_call","params":[{"to":"'$resolver'","data":"0x3b3b57de'$namehash'"},"latest"]}'
         data=$(curl -Ls "$rpc" --json "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        [ "${data: -2:1}" = '}' ] && { >&2 echo -e "error: resolver contract\n$data"; return 1; } 
-        data=${data: -42:40}
+        [[ "$data" != *result* ]] && { >&2 echo -e "error: resolver contract\n$data"; return 1; } 
+        data="${data// /}"            # remove spaces
+        data=${data#*\"result\":\"0x} # get result
+        data=${data%\"*}
+        data=${data: -40}
         [ "$data" = 0000000000000000000000000000000000000000 ] && return 0
 
         if [ "$checksum" ]; then
@@ -254,8 +266,10 @@ ens() {
         params='{"id":1,"method":"eth_call","params":[{"to":"'$resolver'","data":"0x691f3431'$namehash'"},"latest"]}'
         data=$(curl -Ls "$rpc" --json "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        data=${data##*\"0x}
-        data=${data:128:-2}
+        data="${data// /}"            # remove spaces
+        data=${data#*\"result\":\"0x} # get result
+        data=${data%\"*}
+        data=${data:128}
         [ -z "$data" ] && return 0
         local ens_name=''
         i=0
@@ -414,7 +428,9 @@ bal() {
 
     data=$(curl -Ls "$rpc" --json "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-    data=${data##*\"0x}
+    data="${data// /}"          # remove spaces
+    data=${data#*\"result\":\"} # get result
+    data=${data%\"*}
 
     # check if result is too long
     if [ ${#data} -gt 66 ]; then
@@ -422,8 +438,7 @@ bal() {
         return 1
     fi
 
-    data=$(fromWei "0x${data:0:-2}" "$d")
-    echo "$data $t"
+    echo "$(fromWei "$data" "$d") $t"
 }
 
 # get prices from chainlink oracles
@@ -451,16 +466,20 @@ chainlink() {
         local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"]}'
         local data=$(curl -Ls "$rpc" --json "$params")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        d=$(fromWei "${data: -68:66}" 0)
+        data="${data// /}"          # remove spaces
+        data=${data#*\"result\":\"} # get result
+        d=$(fromWei "${data%\"*}" 0)
     fi
 
     # call 'latestAnswer' method
     local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x50d25bcd"},"latest"]}'
     local data=$(curl -Ls "$rpc" --json "$params")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-    [ "${data: -2:1}" = '}' ] && { >&2 echo -e "error: oracle contract\n$data"; return 1; } 
+    [[ "$data" != *result* ]] && { >&2 echo -e "error: oracle contract\n$data"; return 1; } 
+    data="${data// /}"          # remove spaces
+    data=${data#*\"result\":\"} # get result
 
-    fromWei "${data: -68:66}" "$d"
+    fromWei "${data%\"*}" "$d"
 }
 
 # get quote from Uniswap v3
@@ -546,7 +565,6 @@ uni() {
     amount_hex=${z:0:$((66-${#amount_hex}))}${amount_hex:2} # pad with zeroes
     params="${params}${t_addr[0]}${t_addr[1]}${amount_hex}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
     data=$(curl -Ls "$rpc" --json "$params")
-    [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     if [[ "$data" == *reverted* ]]; then
         if [ -z "$fee_set" ]; then # retry with 1% fee
             echo "warning: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%, trying 1%" >&2
@@ -554,11 +572,12 @@ uni() {
             fee_hex='2710'
             params="${params:0:292}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
             data=$(curl -Ls "$rpc" --json "$params")
-            [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         fi
         [[ "$data" == *reverted* ]] && { >&2 echo "error: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%"; return 1; }
     fi
-    data=${data#*\"result\":\"}
+    [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
+    data="${data// /}"          # remove spaces
+    data=${data#*\"result\":\"} # get result
     amount[$((1-$i))]=$(fromWei "${data:0:66}" "${d[$((1-$i))]}")
 
     echo "${amount[0]} ${t[0]} -> ${amount[1]} ${t[1]}" 
