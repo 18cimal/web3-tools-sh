@@ -22,7 +22,7 @@ erc20() {
     local net='ethereum'                   # default network
 
     local rpc="$ETH_RPC_URL"
-    local token_index='' # used when multiple tokens with same symbol in list 
+    local token_index='' # used when multiple tokens with same symbol in list
     local compact=''     # only print symbol, address and decimals
     local symbol=''
     local all=''
@@ -111,12 +111,13 @@ erc20() {
     for method in 0x95d89b41 0x06fdde03; do # symbol and name methods
         # skip if symbol or name is not requested
         [ "$method" = 0x95d89b41 -a "$symbol" -a "$compact" ] || [ "$method" = 0x06fdde03 -a "$compact" ] && continue
-        local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"'$method'"},"latest"]}'
-        local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+        local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${address}'","data":"'$method'"},"latest"],"id":1}'
+        local data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"            # remove spaces
         data=${data#*\"result\":\"0x} # get result
         data=${data%\"*}
+        [ -z "$data" ] && { >&2 echo "error: token contract $symbol $address"; return 1; }
         data=${data:128}
         local hexstr=''
         local j=0
@@ -134,14 +135,16 @@ erc20() {
 
     # get decimals
     if [ "$decimals" = null -o -z "$compact" ]; then
-        local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"]}'
-        local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+        local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"],"id":1}'
+        local data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"          # remove spaces
         data=${data#*\"result\":\"} # get result
-        decimals=$(fromWei "${data%\"*}" 0)
+        data=${data%\"*}
+        [ "$data" = 0x ] && { >&2 echo "error: token contract $symbol $address"; return 1; }
+        decimals=$(fromWei "$data" 0)
     fi
-    
+
     if [ "$compact" ]; then
         echo -ne "${symbol}\x00${address}\x00${decimals}"
     else
@@ -180,8 +183,8 @@ keccak() {
             done
             data=$hex
         fi
-        local params='{"id":1,"method":"web3_sha3","params":["0x'$data'"]}'
-        hash=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+        local params='{"jsonrpc":"2.0","method":"web3_sha3","params":["0x'$data'"],"id":1}'
+        hash=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         [ -z "$hash" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         hash="${hash// /}"            # remove spaces
         hash=${hash#*\"result\":\"0x} # get result
@@ -225,8 +228,8 @@ ens() {
 
     # get resolver
     local registry='0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e'
-    local params='{"id":1,"method":"eth_call","params":[{"to":"'$registry'","data":"0x0178b8bf'$namehash'"},"latest"]}'
-    local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+    local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'$registry'","data":"0x0178b8bf'$namehash'"},"latest"],"id":1}'
+    local data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     data="${data// /}"            # remove spaces
     data=${data#*\"result\":\"0x} # get result
@@ -236,10 +239,10 @@ ens() {
 
     if [ -z "$reverse" ]; then
         # eth_call to resolver with 'addr' method selector
-        params='{"id":1,"method":"eth_call","params":[{"to":"'$resolver'","data":"0x3b3b57de'$namehash'"},"latest"]}'
-        data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+        params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'$resolver'","data":"0x3b3b57de'$namehash'"},"latest"],"id":1}'
+        data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-        [[ "$data" != *result* ]] && { >&2 echo -e "error: resolver contract\n$data"; return 1; } 
+        [[ "$data" != *result* ]] && { >&2 echo -e "error: resolver contract\n$data"; return 1; }
         data="${data// /}"            # remove spaces
         data=${data#*\"result\":\"0x} # get result
         data=${data%\"*}
@@ -263,8 +266,8 @@ ens() {
             echo "0x$data"
         fi
     else # reverse resolve using 'name' method
-        params='{"id":1,"method":"eth_call","params":[{"to":"'$resolver'","data":"0x691f3431'$namehash'"},"latest"]}'
-        data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+        params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'$resolver'","data":"0x691f3431'$namehash'"},"latest"],"id":1}'
+        data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"            # remove spaces
         data=${data#*\"result\":\"0x} # get result
@@ -293,7 +296,7 @@ toWei() {
     local d=18
     [ "$2" ] && [ "$2" != '-x' ] && { d="$2"; shift; }
     local h="$2"
-    
+
     local dec=''
     [[ "$num" == *.* ]] && dec="${num#*.}"
     num=${num%.*}
@@ -367,7 +370,7 @@ bal() {
     local t=''
     case "${2:0:2}" in # check is 2nd arg is the token or an option
         -l|-n|-r) : ;;
-        -a) [ "${2:2}" ] && { t="$2"; shift; } ;; 
+        -a) [ "${2:2}" ] && { t="$2"; shift; } ;;
         -i) [ "${2:2}" -ge 0 ] 2>/dev/null || { t="$2"; shift; } ;;
         *) t="$2"; shift ;;
     esac
@@ -392,7 +395,7 @@ bal() {
 
     [[ "$address" == *.* ]] && address=$(ens "$address" -C -r "$rpc")
     [ ${#address} -ne 42 ] && { >&2 echo "error: resolved address is invalid '$address'"; return 1; }
-    local params='{"id":1,"method":"eth_getBalance","params":["'${address}'","latest"]}'
+    local params='{"jsonrpc":"2.0","method":"eth_getBalance","params":["'${address}'","latest"],"id":1}'
     local d=18
     local data
     local native_token=ETH
@@ -423,10 +426,10 @@ bal() {
         d="${data[2]}"
         # eth call balanceOf
         address="000000000000000000000000${address:2}"
-        params='{"id":1,"method":"eth_call","params":[{"to":"'${data[1]}'","data":"0x70a08231'${address}'"},"latest"]}'
+        params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${data[1]}'","data":"0x70a08231'${address}'"},"latest"],"id":1}'
     fi
 
-    data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+    data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     data="${data// /}"          # remove spaces
     data=${data#*\"result\":\"} # get result
@@ -463,19 +466,21 @@ chainlink() {
 
     # get decimals
     if [ -z "$d" ]; then
-        local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"]}'
-        local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+        local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${address}'","data":"0x313ce567"},"latest"],"id":1}'
+        local data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
         data="${data// /}"          # remove spaces
         data=${data#*\"result\":\"} # get result
-        d=$(fromWei "${data%\"*}" 0)
+        data=${data%\"*}
+        [ "$data" = 0x ] && { >&2 echo -e "error: oracle contract\nresult: $data"; return 1; }
+        d=$(fromWei "$data" 0)
     fi
 
     # call 'latestAnswer' method
-    local params='{"id":1,"method":"eth_call","params":[{"to":"'${address}'","data":"0x50d25bcd"},"latest"]}'
-    local data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+    local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${address}'","data":"0x50d25bcd"},"latest"],"id":1}'
+    local data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
     [ -z "$data" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
-    [[ "$data" != *result* ]] && { >&2 echo -e "error: oracle contract\n$data"; return 1; } 
+    [[ "$data" != *result* ]] && { >&2 echo -e "error: oracle contract\n$data"; return 1; }
     data="${data// /}"          # remove spaces
     data=${data#*\"result\":\"} # get result
 
@@ -527,7 +532,7 @@ uni() {
     local native_token=ETH
     case "$net" in
         polygon|polygon-pos) native_token=MATIC ;;
-        bsc|binance-smart-chain) 
+        bsc|binance-smart-chain)
             native_token=BNB
             quoter='0x78D78E420Da98ad378D7799bE8f4AF69033EB077'
             ;;
@@ -555,23 +560,23 @@ uni() {
     # select ExactInput or ExactOutput mode
     if [ "${amount[0]}" ]; then # quoteExactInputSingle
         i=0
-        local params='{"method":"eth_call","params":[{"to":"'${quoter}'","data":"0xc6a5026a'
+        local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${quoter}'","data":"0xc6a5026a'
     else  # quoteExactOutputSingle
         i=1
-        local params='{"method":"eth_call","params":[{"to":"'${quoter}'","data":"0xbd21704a'
+        local params='{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"'${quoter}'","data":"0xbd21704a'
     fi
 
     local amount_hex=$(toWei "${amount[$i]}" "${d[$i]}" -x)
     amount_hex=${z:0:$((66-${#amount_hex}))}${amount_hex:2} # pad with zeroes
     params="${params}${t_addr[0]}${t_addr[1]}${amount_hex}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
-    data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+    data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
     if [[ "$data" == *reverted* ]]; then
         if [ -z "$fee_set" ]; then # retry with 1% fee
             echo "warning: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%, trying 1%" >&2
             fee=1
             fee_hex='2710'
-            params="${params:0:292}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
-            data=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+            params="${params:0:308}${z:0:60}${fee_hex}${z}"'"},"latest"],"id":1}'
+            data=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
         fi
         [[ "$data" == *reverted* ]] && { >&2 echo "error: no pool available for ${t[0]}/${t[1]} with fee ${fee%\%}%"; return 1; }
     fi
@@ -580,7 +585,7 @@ uni() {
     data=${data#*\"result\":\"} # get result
     amount[$((1-$i))]=$(fromWei "${data:0:66}" "${d[$((1-$i))]}")
 
-    echo "${amount[0]} ${t[0]} -> ${amount[1]} ${t[1]}" 
+    echo "${amount[0]} ${t[0]} -> ${amount[1]} ${t[1]}"
 }
 
 # get next block gas price
@@ -604,8 +609,8 @@ gas() {
     done
 
     # get lastest block data: base fee, gas target and gas used
-    local params='{"id":1,"method":"eth_getBlockByNumber","params":["latest",true]}'
-    local block=$(curl -Ls "$rpc" -H 'Content-Type:application/json' -d "$params")
+    local params='{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",true],"id":1}'
+    local block=$(curl -Ls -H "Content-Type: application/json" -d "$params" "$rpc")
     [ -z "$block" ] && { >&2 echo -e "error: connecting to rpc url $rpc\nparams: $params"; return 1; }
     local block_data=($(echo "$block" | jq -j '.result | "\(.baseFeePerGas) \(.gasLimit) \(.gasUsed)"'))
     local base_fee="${block_data[0]}"
