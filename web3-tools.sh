@@ -385,7 +385,7 @@ bal() {
         case $opt in
             l) token_list="$OPTARG" ;;
             i) token_index="$OPTARG" ;;
-            n) net="$OPTARG" ;;
+            n) net="${OPTARG,,}" ;;
             r) [ "$OPTARG" ] && rpc="$OPTARG" ;;
             a) all=1 ;;
             :)  { echo "Option -$OPTARG requires an argument." >&2; return 1; } ;;
@@ -513,7 +513,7 @@ uni() {
             l) token_list="$OPTARG" ;;
             i) token_index[0]="$OPTARG" ;;
             I) token_index[1]="$OPTARG" ;;
-            n) net="$OPTARG" ;;
+            n) net="${OPTARG,,}" ;;
             f) [ "$OPTARG" ] && { fee="$OPTARG"; fee_set=1; } ;;
             r) [ "$OPTARG" ] && rpc="$OPTARG" ;;
             :)  { echo "Option -$OPTARG requires an argument." >&2; return 1; } ;;
@@ -532,6 +532,7 @@ uni() {
     local native_token=ETH
     case "$net" in
         polygon|polygon-pos) native_token=MATIC ;;
+        base) quoter='0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a' ;;
         bsc|binance-smart-chain)
             native_token=BNB
             quoter='0x78D78E420Da98ad378D7799bE8f4AF69033EB077'
