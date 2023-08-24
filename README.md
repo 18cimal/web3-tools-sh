@@ -114,7 +114,7 @@ Supports both "sell exact" and "buy exact" by using the order of the arguments. 
 By default, it will use the 0.3% fee pool. To get a quote from other fee tier pools use the `-f` option with `0.01`, `0.05` or `1` value.
 If the default 0.3% pool doesn't exist then the 1% fee pool is tried.
 
-Additional supported networks are `arbitrum`, `optimism`, `polygon` and `bsc` (addresses of quoter contract are set for those networks).
+Additional supported networks are `arbitrum`, `optimism`, `base`, `polygon` and `bsc` (addresses of quoter contract are set for those networks).
 ```
 usage: uni [amount to sell] [sell token] [buy token] [-f fee] [-l token_list] [-i token_index] [-I token_index] [-n network] [-r RPC URL]
   or   uni [sell token] [amount to buy] [buy token]  ...
@@ -198,11 +198,11 @@ The script supports other networks by using the `-r RPC_URL` option argument or 
 
 The commands which need token symbol to address mapping also need to use the `-n` option to specify the name of the network to lookup in the token list.
 
-`arbitrum`, `optimism`, `polygon` and `bsc` are supported but other networks can be used as long as the name is the same as the one in the token list.
+`arbitrum`, `optimism`, `base`, `polygon` and `bsc` are supported but other networks can be used as long as the name is the same as the one in the token list.
 
 The `ens` command only works on mainnet.
 
-The `uni` command supports `arbitrum`, `optimism`, `polygon` and `bsc` (addresses of quoter contract are set for those networks).
+The `uni` command supports `arbitrum`, `optimism`, `base`, `polygon` and `bsc` (addresses of quoter contract are set for those networks).
 
 The `bal` command will correctly display the native token for `polygon` and `bsc`. For other networks with native token different than ETH it will still work but the native token with be shown as ETH.
 
